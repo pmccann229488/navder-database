@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 3nShoLVEFyhhpS3NbrDfYr35knjELa4nrOKK5MjWijoVTn1ui5KEf1I0RA1sDbr
+\restrict 6P9qJexTy5BFlAebF8VfeUWW8KNI6B1x076bkfDEc3xKVWdqt5p6Wa4sWRNM9sA
 
 -- Dumped from database version 18.6 (Homebrew)
 -- Dumped by pg_dump version 18.6 (Homebrew)
@@ -34,6 +34,13 @@ CREATE SCHEMA audit;
 
 
 --
+-- Name: communications; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA communications;
+
+
+--
 -- Name: community; Type: SCHEMA; Schema: -; Owner: -
 --
 
@@ -59,6 +66,13 @@ CREATE SCHEMA design;
 --
 
 CREATE SCHEMA intelligence;
+
+
+--
+-- Name: messaging; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA messaging;
 
 
 --
@@ -314,6 +328,196 @@ ALTER SEQUENCE activity.pal_pinger_session_pal_pinger_session_id_seq OWNED BY ac
 
 
 --
+-- Name: authority; Type: TABLE; Schema: audit; Owner: -
+--
+
+CREATE TABLE audit.authority (
+    authority_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: authority_authority_id_seq; Type: SEQUENCE; Schema: audit; Owner: -
+--
+
+CREATE SEQUENCE audit.authority_authority_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: authority_authority_id_seq; Type: SEQUENCE OWNED BY; Schema: audit; Owner: -
+--
+
+ALTER SEQUENCE audit.authority_authority_id_seq OWNED BY audit.authority.authority_id;
+
+
+--
+-- Name: event; Type: TABLE; Schema: audit; Owner: -
+--
+
+CREATE TABLE audit.event (
+    audit_event_id bigint NOT NULL,
+    audit_type text NOT NULL,
+    actor_source text NOT NULL,
+    actor_reference text,
+    authority_reference text,
+    action text NOT NULL,
+    entity_type text NOT NULL,
+    entity_id text,
+    occurred_at timestamp with time zone DEFAULT now() NOT NULL,
+    before_state jsonb,
+    after_state jsonb,
+    details jsonb,
+    CONSTRAINT actor_source_valid CHECK ((actor_source = ANY (ARRAY['OPERATOR'::text, 'REMOTE'::text, 'SYSTEM'::text]))),
+    CONSTRAINT audit_type_valid CHECK ((audit_type = ANY (ARRAY['OPERATOR'::text, 'REMOTE'::text, 'SYSTEM'::text])))
+);
+
+
+--
+-- Name: event_audit_event_id_seq; Type: SEQUENCE; Schema: audit; Owner: -
+--
+
+CREATE SEQUENCE audit.event_audit_event_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: event_audit_event_id_seq; Type: SEQUENCE OWNED BY; Schema: audit; Owner: -
+--
+
+ALTER SEQUENCE audit.event_audit_event_id_seq OWNED BY audit.event.audit_event_id;
+
+
+--
+-- Name: operator; Type: TABLE; Schema: audit; Owner: -
+--
+
+CREATE TABLE audit.operator (
+    operator_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    firebase_uid text NOT NULL,
+    display_name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: operator_authority; Type: TABLE; Schema: audit; Owner: -
+--
+
+CREATE TABLE audit.operator_authority (
+    operator_id bigint NOT NULL,
+    authority_id bigint NOT NULL,
+    assigned_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: operator_operator_id_seq; Type: SEQUENCE; Schema: audit; Owner: -
+--
+
+CREATE SEQUENCE audit.operator_operator_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: operator_operator_id_seq; Type: SEQUENCE OWNED BY; Schema: audit; Owner: -
+--
+
+ALTER SEQUENCE audit.operator_operator_id_seq OWNED BY audit.operator.operator_id;
+
+
+--
+-- Name: communication; Type: TABLE; Schema: communications; Owner: -
+--
+
+CREATE TABLE communications.communication (
+    communication_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    communication_type text DEFAULT 'OPERATIONAL'::text NOT NULL,
+    title text,
+    message text NOT NULL,
+    poi_id bigint,
+    poi_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    item_sequence_id bigint,
+    CONSTRAINT communication_expiry_after_creation CHECK (((expires_at IS NULL) OR (expires_at > created_at))),
+    CONSTRAINT communication_target_valid CHECK ((((poi_id IS NULL) AND (poi_item_id IS NULL) AND (item_sequence_id IS NULL)) OR ((poi_id IS NOT NULL) AND (poi_item_id IS NULL) AND (item_sequence_id IS NULL)) OR ((poi_id IS NULL) AND (poi_item_id IS NOT NULL) AND (item_sequence_id IS NULL)) OR ((poi_id IS NULL) AND (poi_item_id IS NULL) AND (item_sequence_id IS NOT NULL)))),
+    CONSTRAINT communication_type_valid CHECK ((communication_type = ANY (ARRAY['OPERATIONAL'::text, 'EMERGENCY'::text])))
+);
+
+
+--
+-- Name: communication_communication_id_seq; Type: SEQUENCE; Schema: communications; Owner: -
+--
+
+CREATE SEQUENCE communications.communication_communication_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: communication_communication_id_seq; Type: SEQUENCE OWNED BY; Schema: communications; Owner: -
+--
+
+ALTER SEQUENCE communications.communication_communication_id_seq OWNED BY communications.communication.communication_id;
+
+
+--
+-- Name: subscription; Type: TABLE; Schema: communications; Owner: -
+--
+
+CREATE TABLE communications.subscription (
+    subscription_id bigint NOT NULL,
+    pal_id bigint NOT NULL,
+    poi_id bigint,
+    poi_item_id bigint,
+    subscribed_at timestamp with time zone DEFAULT now() NOT NULL,
+    item_sequence_id bigint,
+    CONSTRAINT subscription_target_valid CHECK ((((poi_id IS NOT NULL) AND (poi_item_id IS NULL) AND (item_sequence_id IS NULL)) OR ((poi_id IS NULL) AND (poi_item_id IS NOT NULL) AND (item_sequence_id IS NULL)) OR ((poi_id IS NULL) AND (poi_item_id IS NULL) AND (item_sequence_id IS NOT NULL))))
+);
+
+
+--
+-- Name: subscription_subscription_id_seq; Type: SEQUENCE; Schema: communications; Owner: -
+--
+
+CREATE SEQUENCE communications.subscription_subscription_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: subscription_subscription_id_seq; Type: SEQUENCE OWNED BY; Schema: communications; Owner: -
+--
+
+ALTER SEQUENCE communications.subscription_subscription_id_seq OWNED BY communications.subscription.subscription_id;
+
+
+--
 -- Name: crew; Type: TABLE; Schema: community; Owner: -
 --
 
@@ -445,6 +649,72 @@ ALTER SEQUENCE community.pal_pal_id_seq OWNED BY community.pal.pal_id;
 
 
 --
+-- Name: allergen; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.allergen (
+    allergen_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: allergen_allergen_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.allergen_allergen_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: allergen_allergen_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.allergen_allergen_id_seq OWNED BY design.allergen.allergen_id;
+
+
+--
+-- Name: dietary_attribute; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.dietary_attribute (
+    dietary_attribute_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: dietary_attribute_dietary_attribute_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.dietary_attribute_dietary_attribute_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: dietary_attribute_dietary_attribute_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.dietary_attribute_dietary_attribute_id_seq OWNED BY design.dietary_attribute.dietary_attribute_id;
+
+
+--
 -- Name: elevator; Type: TABLE; Schema: design; Owner: -
 --
 
@@ -523,8 +793,113 @@ CREATE TABLE design.event (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     start_at timestamp with time zone NOT NULL,
     end_at timestamp with time zone NOT NULL,
+    remote_support_enabled boolean DEFAULT false NOT NULL,
     CONSTRAINT event_dates_valid CHECK ((end_at > start_at))
 );
+
+
+--
+-- Name: event_beacon; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.event_beacon (
+    event_beacon_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    poi_id bigint,
+    name text NOT NULL,
+    description text,
+    geometry public.geometry(Point,4326) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: event_beacon_event_beacon_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.event_beacon_event_beacon_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: event_beacon_event_beacon_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.event_beacon_event_beacon_id_seq OWNED BY design.event_beacon.event_beacon_id;
+
+
+--
+-- Name: event_beacon_physical; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.event_beacon_physical (
+    event_beacon_physical_id bigint NOT NULL,
+    event_beacon_id bigint NOT NULL,
+    physical_beacon_id bigint NOT NULL,
+    role text NOT NULL,
+    assigned_at timestamp with time zone DEFAULT now() NOT NULL,
+    description text,
+    CONSTRAINT event_beacon_physical_role_valid CHECK ((role = ANY (ARRAY['PRIMARY'::text, 'SECONDARY'::text])))
+);
+
+
+--
+-- Name: event_beacon_physical_event_beacon_physical_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.event_beacon_physical_event_beacon_physical_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: event_beacon_physical_event_beacon_physical_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.event_beacon_physical_event_beacon_physical_id_seq OWNED BY design.event_beacon_physical.event_beacon_physical_id;
+
+
+--
+-- Name: event_day; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.event_day (
+    event_day_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    day_number integer NOT NULL,
+    name text,
+    date date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT event_day_number_positive CHECK ((day_number > 0))
+);
+
+
+--
+-- Name: event_day_event_day_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.event_day_event_day_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: event_day_event_day_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.event_day_event_day_id_seq OWNED BY design.event_day.event_day_id;
 
 
 --
@@ -582,6 +957,44 @@ ALTER SEQUENCE design.flight_flight_id_seq OWNED BY design.flight.flight_id;
 
 
 --
+-- Name: item_sequence; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.item_sequence (
+    item_sequence_id bigint NOT NULL,
+    event_day_id bigint NOT NULL,
+    poi_item_id bigint NOT NULL,
+    sequence_no integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    scheduled_start_time time without time zone,
+    duration_minutes integer,
+    CONSTRAINT item_sequence_duration_positive CHECK (((duration_minutes IS NULL) OR (duration_minutes > 0))),
+    CONSTRAINT item_sequence_number_positive CHECK ((sequence_no > 0)),
+    CONSTRAINT item_sequence_schedule_complete CHECK ((((scheduled_start_time IS NULL) AND (duration_minutes IS NULL)) OR ((scheduled_start_time IS NOT NULL) AND (duration_minutes IS NOT NULL))))
+);
+
+
+--
+-- Name: item_sequence_item_sequence_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.item_sequence_item_sequence_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: item_sequence_item_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.item_sequence_item_sequence_id_seq OWNED BY design.item_sequence.item_sequence_id;
+
+
+--
 -- Name: junction; Type: TABLE; Schema: design; Owner: -
 --
 
@@ -592,7 +1005,9 @@ CREATE TABLE design.junction (
     geometry public.geometry(Point,4326) NOT NULL,
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    display_geometry public.geometry(Polygon,4326),
+    display_image_ref text
 );
 
 
@@ -613,6 +1028,165 @@ CREATE SEQUENCE design.junction_junction_id_seq
 --
 
 ALTER SEQUENCE design.junction_junction_id_seq OWNED BY design.junction.junction_id;
+
+
+--
+-- Name: offering; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering (
+    offering_id bigint NOT NULL,
+    poi_id bigint NOT NULL,
+    offering_type_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: offering_availability; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering_availability (
+    offering_availability_id bigint NOT NULL,
+    offering_id bigint NOT NULL,
+    starts_at time without time zone NOT NULL,
+    ends_at time without time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT offering_availability_time_order CHECK ((ends_at > starts_at))
+);
+
+
+--
+-- Name: offering_availability_offering_availability_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.offering_availability_offering_availability_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: offering_availability_offering_availability_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.offering_availability_offering_availability_id_seq OWNED BY design.offering_availability.offering_availability_id;
+
+
+--
+-- Name: offering_item; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering_item (
+    offering_item_id bigint NOT NULL,
+    offering_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    price numeric(10,2),
+    image_ref text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT offering_item_price_non_negative CHECK (((price IS NULL) OR (price >= (0)::numeric)))
+);
+
+
+--
+-- Name: offering_item_allergen; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering_item_allergen (
+    offering_item_id bigint NOT NULL,
+    allergen_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: offering_item_dietary_attribute; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering_item_dietary_attribute (
+    offering_item_id bigint NOT NULL,
+    dietary_attribute_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: offering_item_offering_item_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.offering_item_offering_item_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: offering_item_offering_item_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.offering_item_offering_item_id_seq OWNED BY design.offering_item.offering_item_id;
+
+
+--
+-- Name: offering_offering_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.offering_offering_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: offering_offering_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.offering_offering_id_seq OWNED BY design.offering.offering_id;
+
+
+--
+-- Name: offering_type; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.offering_type (
+    offering_type_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: offering_type_offering_type_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.offering_type_offering_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: offering_type_offering_type_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.offering_type_offering_type_id_seq OWNED BY design.offering_type.offering_type_id;
 
 
 --
@@ -788,6 +1362,45 @@ ALTER SEQUENCE design.path_segment_path_segment_id_seq OWNED BY design.path_segm
 
 
 --
+-- Name: physical_beacon; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.physical_beacon (
+    physical_beacon_id bigint NOT NULL,
+    asset_name text NOT NULL,
+    hardware_model text NOT NULL,
+    ibeacon_uuid uuid NOT NULL,
+    ibeacon_major integer NOT NULL,
+    ibeacon_minor integer NOT NULL,
+    status text DEFAULT 'AVAILABLE'::text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT physical_beacon_major_non_negative CHECK ((ibeacon_major >= 0)),
+    CONSTRAINT physical_beacon_minor_non_negative CHECK ((ibeacon_minor >= 0))
+);
+
+
+--
+-- Name: physical_beacon_physical_beacon_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.physical_beacon_physical_beacon_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: physical_beacon_physical_beacon_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.physical_beacon_physical_beacon_id_seq OWNED BY design.physical_beacon.physical_beacon_id;
+
+
+--
 -- Name: poi; Type: TABLE; Schema: design; Owner: -
 --
 
@@ -795,12 +1408,79 @@ CREATE TABLE design.poi (
     poi_id bigint NOT NULL,
     event_id bigint NOT NULL,
     name text NOT NULL,
-    poi_type text NOT NULL,
+    poi_type_id bigint CONSTRAINT poi_poi_type_not_null NOT NULL,
     description text,
     geometry public.geometry(Point,4326) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    lod_display_level integer
+);
+
+
+--
+-- Name: poi_capability; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.poi_capability (
+    poi_capability_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: poi_capability_poi_capability_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.poi_capability_poi_capability_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: poi_capability_poi_capability_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.poi_capability_poi_capability_id_seq OWNED BY design.poi_capability.poi_capability_id;
+
+
+--
+-- Name: poi_item; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.poi_item (
+    poi_item_id bigint NOT NULL,
+    poi_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: poi_item_poi_item_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.poi_item_poi_item_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: poi_item_poi_item_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.poi_item_poi_item_id_seq OWNED BY design.poi_item.poi_item_id;
 
 
 --
@@ -834,6 +1514,50 @@ ALTER SEQUENCE design.poi_poi_id_seq OWNED BY design.poi.poi_id;
 
 
 --
+-- Name: poi_type; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.poi_type (
+    poi_type_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: poi_type_capability; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.poi_type_capability (
+    poi_type_id bigint NOT NULL,
+    poi_capability_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: poi_type_poi_type_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.poi_type_poi_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: poi_type_poi_type_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.poi_type_poi_type_id_seq OWNED BY design.poi_type.poi_type_id;
+
+
+--
 -- Name: queue; Type: TABLE; Schema: design; Owner: -
 --
 
@@ -845,6 +1569,7 @@ CREATE TABLE design.queue (
     fallback_wait_seconds integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    poi_id bigint NOT NULL,
     CONSTRAINT queue_fallback_wait_valid CHECK (((fallback_wait_seconds IS NULL) OR (fallback_wait_seconds >= 0)))
 );
 
@@ -869,6 +1594,105 @@ ALTER SEQUENCE design.queue_queue_id_seq OWNED BY design.queue.queue_id;
 
 
 --
+-- Name: queue_source; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.queue_source (
+    queue_source_id bigint NOT NULL,
+    queue_id bigint NOT NULL,
+    queue_source_type_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: queue_source_ble; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.queue_source_ble (
+    queue_source_ble_id bigint NOT NULL,
+    queue_source_id bigint NOT NULL,
+    event_beacon_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: queue_source_ble_queue_source_ble_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.queue_source_ble_queue_source_ble_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: queue_source_ble_queue_source_ble_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.queue_source_ble_queue_source_ble_id_seq OWNED BY design.queue_source_ble.queue_source_ble_id;
+
+
+--
+-- Name: queue_source_queue_source_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.queue_source_queue_source_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: queue_source_queue_source_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.queue_source_queue_source_id_seq OWNED BY design.queue_source.queue_source_id;
+
+
+--
+-- Name: queue_source_type; Type: TABLE; Schema: design; Owner: -
+--
+
+CREATE TABLE design.queue_source_type (
+    queue_source_type_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: queue_source_type_queue_source_type_id_seq; Type: SEQUENCE; Schema: design; Owner: -
+--
+
+CREATE SEQUENCE design.queue_source_type_queue_source_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: queue_source_type_queue_source_type_id_seq; Type: SEQUENCE OWNED BY; Schema: design; Owner: -
+--
+
+ALTER SEQUENCE design.queue_source_type_queue_source_type_id_seq OWNED BY design.queue_source_type.queue_source_type_id;
+
+
+--
 -- Name: queue_wait_time; Type: TABLE; Schema: design; Owner: -
 --
 
@@ -878,6 +1702,7 @@ CREATE TABLE design.queue_wait_time (
     wait_seconds integer NOT NULL,
     observed_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    queue_source_id bigint NOT NULL,
     CONSTRAINT queue_wait_time_valid CHECK ((wait_seconds >= 0))
 );
 
@@ -1215,6 +2040,114 @@ ALTER SEQUENCE design.zone_zone_id_seq OWNED BY design.zone.zone_id;
 
 
 --
+-- Name: acknowledgement; Type: TABLE; Schema: messaging; Owner: -
+--
+
+CREATE TABLE messaging.acknowledgement (
+    acknowledgement_id bigint NOT NULL,
+    delivery_id bigint NOT NULL,
+    acknowledged_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: acknowledgement_acknowledgement_id_seq; Type: SEQUENCE; Schema: messaging; Owner: -
+--
+
+CREATE SEQUENCE messaging.acknowledgement_acknowledgement_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: acknowledgement_acknowledgement_id_seq; Type: SEQUENCE OWNED BY; Schema: messaging; Owner: -
+--
+
+ALTER SEQUENCE messaging.acknowledgement_acknowledgement_id_seq OWNED BY messaging.acknowledgement.acknowledgement_id;
+
+
+--
+-- Name: delivery; Type: TABLE; Schema: messaging; Owner: -
+--
+
+CREATE TABLE messaging.delivery (
+    delivery_id bigint NOT NULL,
+    message_id bigint NOT NULL,
+    pal_id bigint,
+    status text DEFAULT 'QUEUED'::text NOT NULL,
+    queued_at timestamp with time zone DEFAULT now() NOT NULL,
+    delivered_at timestamp with time zone,
+    expires_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    last_attempt_at timestamp with time zone,
+    CONSTRAINT delivery_attempt_count_nonnegative CHECK ((attempt_count >= 0)),
+    CONSTRAINT delivery_cancelled_after_queue CHECK (((cancelled_at IS NULL) OR (cancelled_at >= queued_at))),
+    CONSTRAINT delivery_delivered_after_queue CHECK (((delivered_at IS NULL) OR (delivered_at >= queued_at))),
+    CONSTRAINT delivery_expiry_after_queue CHECK (((expires_at IS NULL) OR (expires_at >= queued_at))),
+    CONSTRAINT delivery_status_valid CHECK ((status = ANY (ARRAY['QUEUED'::text, 'DELIVERING'::text, 'DELIVERED'::text, 'EXPIRED'::text, 'CANCELLED'::text])))
+);
+
+
+--
+-- Name: delivery_delivery_id_seq; Type: SEQUENCE; Schema: messaging; Owner: -
+--
+
+CREATE SEQUENCE messaging.delivery_delivery_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: delivery_delivery_id_seq; Type: SEQUENCE OWNED BY; Schema: messaging; Owner: -
+--
+
+ALTER SEQUENCE messaging.delivery_delivery_id_seq OWNED BY messaging.delivery.delivery_id;
+
+
+--
+-- Name: message; Type: TABLE; Schema: messaging; Owner: -
+--
+
+CREATE TABLE messaging.message (
+    message_id bigint NOT NULL,
+    event_id bigint NOT NULL,
+    message_type smallint NOT NULL,
+    payload bytea NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    CONSTRAINT message_cancelled_after_creation CHECK (((cancelled_at IS NULL) OR (cancelled_at >= created_at))),
+    CONSTRAINT message_expiry_after_creation CHECK (((expires_at IS NULL) OR (expires_at > created_at)))
+);
+
+
+--
+-- Name: message_message_id_seq; Type: SEQUENCE; Schema: messaging; Owner: -
+--
+
+CREATE SEQUENCE messaging.message_message_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: message_message_id_seq; Type: SEQUENCE OWNED BY; Schema: messaging; Owner: -
+--
+
+ALTER SEQUENCE messaging.message_message_id_seq OWNED BY messaging.message.message_id;
+
+
+--
 -- Name: assistance_request assistance_request_id; Type: DEFAULT; Schema: activity; Owner: -
 --
 
@@ -1250,6 +2183,41 @@ ALTER TABLE ONLY activity.pal_pinger_session ALTER COLUMN pal_pinger_session_id 
 
 
 --
+-- Name: authority authority_id; Type: DEFAULT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.authority ALTER COLUMN authority_id SET DEFAULT nextval('audit.authority_authority_id_seq'::regclass);
+
+
+--
+-- Name: event audit_event_id; Type: DEFAULT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.event ALTER COLUMN audit_event_id SET DEFAULT nextval('audit.event_audit_event_id_seq'::regclass);
+
+
+--
+-- Name: operator operator_id; Type: DEFAULT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator ALTER COLUMN operator_id SET DEFAULT nextval('audit.operator_operator_id_seq'::regclass);
+
+
+--
+-- Name: communication communication_id; Type: DEFAULT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication ALTER COLUMN communication_id SET DEFAULT nextval('communications.communication_communication_id_seq'::regclass);
+
+
+--
+-- Name: subscription subscription_id; Type: DEFAULT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription ALTER COLUMN subscription_id SET DEFAULT nextval('communications.subscription_subscription_id_seq'::regclass);
+
+
+--
 -- Name: crew crew_id; Type: DEFAULT; Schema: community; Owner: -
 --
 
@@ -1278,6 +2246,20 @@ ALTER TABLE ONLY community.pal ALTER COLUMN pal_id SET DEFAULT nextval('communit
 
 
 --
+-- Name: allergen allergen_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.allergen ALTER COLUMN allergen_id SET DEFAULT nextval('design.allergen_allergen_id_seq'::regclass);
+
+
+--
+-- Name: dietary_attribute dietary_attribute_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.dietary_attribute ALTER COLUMN dietary_attribute_id SET DEFAULT nextval('design.dietary_attribute_dietary_attribute_id_seq'::regclass);
+
+
+--
 -- Name: elevator elevator_id; Type: DEFAULT; Schema: design; Owner: -
 --
 
@@ -1299,6 +2281,27 @@ ALTER TABLE ONLY design.event ALTER COLUMN event_id SET DEFAULT nextval('design.
 
 
 --
+-- Name: event_beacon event_beacon_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon ALTER COLUMN event_beacon_id SET DEFAULT nextval('design.event_beacon_event_beacon_id_seq'::regclass);
+
+
+--
+-- Name: event_beacon_physical event_beacon_physical_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon_physical ALTER COLUMN event_beacon_physical_id SET DEFAULT nextval('design.event_beacon_physical_event_beacon_physical_id_seq'::regclass);
+
+
+--
+-- Name: event_day event_day_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_day ALTER COLUMN event_day_id SET DEFAULT nextval('design.event_day_event_day_id_seq'::regclass);
+
+
+--
 -- Name: flight flight_id; Type: DEFAULT; Schema: design; Owner: -
 --
 
@@ -1306,10 +2309,45 @@ ALTER TABLE ONLY design.flight ALTER COLUMN flight_id SET DEFAULT nextval('desig
 
 
 --
+-- Name: item_sequence item_sequence_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.item_sequence ALTER COLUMN item_sequence_id SET DEFAULT nextval('design.item_sequence_item_sequence_id_seq'::regclass);
+
+
+--
 -- Name: junction junction_id; Type: DEFAULT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.junction ALTER COLUMN junction_id SET DEFAULT nextval('design.junction_junction_id_seq'::regclass);
+
+
+--
+-- Name: offering offering_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering ALTER COLUMN offering_id SET DEFAULT nextval('design.offering_offering_id_seq'::regclass);
+
+
+--
+-- Name: offering_availability offering_availability_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_availability ALTER COLUMN offering_availability_id SET DEFAULT nextval('design.offering_availability_offering_availability_id_seq'::regclass);
+
+
+--
+-- Name: offering_item offering_item_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item ALTER COLUMN offering_item_id SET DEFAULT nextval('design.offering_item_offering_item_id_seq'::regclass);
+
+
+--
+-- Name: offering_type offering_type_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_type ALTER COLUMN offering_type_id SET DEFAULT nextval('design.offering_type_offering_type_id_seq'::regclass);
 
 
 --
@@ -1348,6 +2386,13 @@ ALTER TABLE ONLY design.path_segment_congestion ALTER COLUMN path_segment_conges
 
 
 --
+-- Name: physical_beacon physical_beacon_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.physical_beacon ALTER COLUMN physical_beacon_id SET DEFAULT nextval('design.physical_beacon_physical_beacon_id_seq'::regclass);
+
+
+--
 -- Name: poi poi_id; Type: DEFAULT; Schema: design; Owner: -
 --
 
@@ -1355,10 +2400,52 @@ ALTER TABLE ONLY design.poi ALTER COLUMN poi_id SET DEFAULT nextval('design.poi_
 
 
 --
+-- Name: poi_capability poi_capability_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_capability ALTER COLUMN poi_capability_id SET DEFAULT nextval('design.poi_capability_poi_capability_id_seq'::regclass);
+
+
+--
+-- Name: poi_item poi_item_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_item ALTER COLUMN poi_item_id SET DEFAULT nextval('design.poi_item_poi_item_id_seq'::regclass);
+
+
+--
+-- Name: poi_type poi_type_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type ALTER COLUMN poi_type_id SET DEFAULT nextval('design.poi_type_poi_type_id_seq'::regclass);
+
+
+--
 -- Name: queue queue_id; Type: DEFAULT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.queue ALTER COLUMN queue_id SET DEFAULT nextval('design.queue_queue_id_seq'::regclass);
+
+
+--
+-- Name: queue_source queue_source_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source ALTER COLUMN queue_source_id SET DEFAULT nextval('design.queue_source_queue_source_id_seq'::regclass);
+
+
+--
+-- Name: queue_source_ble queue_source_ble_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_ble ALTER COLUMN queue_source_ble_id SET DEFAULT nextval('design.queue_source_ble_queue_source_ble_id_seq'::regclass);
+
+
+--
+-- Name: queue_source_type queue_source_type_id; Type: DEFAULT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_type ALTER COLUMN queue_source_type_id SET DEFAULT nextval('design.queue_source_type_queue_source_type_id_seq'::regclass);
 
 
 --
@@ -1432,6 +2519,27 @@ ALTER TABLE ONLY design.zone_connector ALTER COLUMN zone_connector_id SET DEFAUL
 
 
 --
+-- Name: acknowledgement acknowledgement_id; Type: DEFAULT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.acknowledgement ALTER COLUMN acknowledgement_id SET DEFAULT nextval('messaging.acknowledgement_acknowledgement_id_seq'::regclass);
+
+
+--
+-- Name: delivery delivery_id; Type: DEFAULT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.delivery ALTER COLUMN delivery_id SET DEFAULT nextval('messaging.delivery_delivery_id_seq'::regclass);
+
+
+--
+-- Name: message message_id; Type: DEFAULT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.message ALTER COLUMN message_id SET DEFAULT nextval('messaging.message_message_id_seq'::regclass);
+
+
+--
 -- Name: assistance_request assistance_request_pkey; Type: CONSTRAINT; Schema: activity; Owner: -
 --
 
@@ -1480,6 +2588,94 @@ ALTER TABLE ONLY activity.pal_pinger_session
 
 
 --
+-- Name: authority authority_event_name_unique; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.authority
+    ADD CONSTRAINT authority_event_name_unique UNIQUE (event_id, name);
+
+
+--
+-- Name: authority authority_pkey; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.authority
+    ADD CONSTRAINT authority_pkey PRIMARY KEY (authority_id);
+
+
+--
+-- Name: event event_pkey; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.event
+    ADD CONSTRAINT event_pkey PRIMARY KEY (audit_event_id);
+
+
+--
+-- Name: operator_authority operator_authority_pkey; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator_authority
+    ADD CONSTRAINT operator_authority_pkey PRIMARY KEY (operator_id, authority_id);
+
+
+--
+-- Name: operator operator_event_firebase_unique; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator
+    ADD CONSTRAINT operator_event_firebase_unique UNIQUE (event_id, firebase_uid);
+
+
+--
+-- Name: operator operator_pkey; Type: CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator
+    ADD CONSTRAINT operator_pkey PRIMARY KEY (operator_id);
+
+
+--
+-- Name: communication communication_pkey; Type: CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication
+    ADD CONSTRAINT communication_pkey PRIMARY KEY (communication_id);
+
+
+--
+-- Name: subscription subscription_item_sequence_unique; Type: CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_item_sequence_unique UNIQUE (pal_id, item_sequence_id);
+
+
+--
+-- Name: subscription subscription_pkey; Type: CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_pkey PRIMARY KEY (subscription_id);
+
+
+--
+-- Name: subscription subscription_poi_item_unique; Type: CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_poi_item_unique UNIQUE (pal_id, poi_item_id);
+
+
+--
+-- Name: subscription subscription_poi_unique; Type: CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_poi_unique UNIQUE (pal_id, poi_id);
+
+
+--
 -- Name: crew_message crew_message_pkey; Type: CONSTRAINT; Schema: community; Owner: -
 --
 
@@ -1512,6 +2708,54 @@ ALTER TABLE ONLY community.pal
 
 
 --
+-- Name: allergen allergen_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.allergen
+    ADD CONSTRAINT allergen_code_unique UNIQUE (code);
+
+
+--
+-- Name: allergen allergen_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.allergen
+    ADD CONSTRAINT allergen_name_unique UNIQUE (name);
+
+
+--
+-- Name: allergen allergen_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.allergen
+    ADD CONSTRAINT allergen_pkey PRIMARY KEY (allergen_id);
+
+
+--
+-- Name: dietary_attribute dietary_attribute_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.dietary_attribute
+    ADD CONSTRAINT dietary_attribute_code_unique UNIQUE (code);
+
+
+--
+-- Name: dietary_attribute dietary_attribute_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.dietary_attribute
+    ADD CONSTRAINT dietary_attribute_name_unique UNIQUE (name);
+
+
+--
+-- Name: dietary_attribute dietary_attribute_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.dietary_attribute
+    ADD CONSTRAINT dietary_attribute_pkey PRIMARY KEY (dietary_attribute_id);
+
+
+--
 -- Name: elevator elevator_pkey; Type: CONSTRAINT; Schema: design; Owner: -
 --
 
@@ -1525,6 +2769,54 @@ ALTER TABLE ONLY design.elevator
 
 ALTER TABLE ONLY design.escalator
     ADD CONSTRAINT escalator_pkey PRIMARY KEY (escalator_id);
+
+
+--
+-- Name: event_beacon_physical event_beacon_physical_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon_physical
+    ADD CONSTRAINT event_beacon_physical_pkey PRIMARY KEY (event_beacon_physical_id);
+
+
+--
+-- Name: event_beacon_physical event_beacon_physical_unique_assignment; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon_physical
+    ADD CONSTRAINT event_beacon_physical_unique_assignment UNIQUE (event_beacon_id, physical_beacon_id);
+
+
+--
+-- Name: event_beacon event_beacon_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon
+    ADD CONSTRAINT event_beacon_pkey PRIMARY KEY (event_beacon_id);
+
+
+--
+-- Name: event_day event_day_event_date_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_day
+    ADD CONSTRAINT event_day_event_date_unique UNIQUE (event_id, date);
+
+
+--
+-- Name: event_day event_day_event_number_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_day
+    ADD CONSTRAINT event_day_event_number_unique UNIQUE (event_id, day_number);
+
+
+--
+-- Name: event_day event_day_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_day
+    ADD CONSTRAINT event_day_pkey PRIMARY KEY (event_day_id);
 
 
 --
@@ -1552,11 +2844,91 @@ ALTER TABLE ONLY design.flight
 
 
 --
+-- Name: item_sequence item_sequence_event_day_sequence_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.item_sequence
+    ADD CONSTRAINT item_sequence_event_day_sequence_unique UNIQUE (event_day_id, sequence_no);
+
+
+--
+-- Name: item_sequence item_sequence_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.item_sequence
+    ADD CONSTRAINT item_sequence_pkey PRIMARY KEY (item_sequence_id);
+
+
+--
 -- Name: junction junction_pkey; Type: CONSTRAINT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.junction
     ADD CONSTRAINT junction_pkey PRIMARY KEY (junction_id);
+
+
+--
+-- Name: offering_availability offering_availability_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_availability
+    ADD CONSTRAINT offering_availability_pkey PRIMARY KEY (offering_availability_id);
+
+
+--
+-- Name: offering_item_allergen offering_item_allergen_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_allergen
+    ADD CONSTRAINT offering_item_allergen_pkey PRIMARY KEY (offering_item_id, allergen_id);
+
+
+--
+-- Name: offering_item_dietary_attribute offering_item_dietary_attribute_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_dietary_attribute
+    ADD CONSTRAINT offering_item_dietary_attribute_pkey PRIMARY KEY (offering_item_id, dietary_attribute_id);
+
+
+--
+-- Name: offering_item offering_item_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item
+    ADD CONSTRAINT offering_item_pkey PRIMARY KEY (offering_item_id);
+
+
+--
+-- Name: offering offering_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering
+    ADD CONSTRAINT offering_pkey PRIMARY KEY (offering_id);
+
+
+--
+-- Name: offering_type offering_type_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_type
+    ADD CONSTRAINT offering_type_code_unique UNIQUE (code);
+
+
+--
+-- Name: offering_type offering_type_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_type
+    ADD CONSTRAINT offering_type_name_unique UNIQUE (name);
+
+
+--
+-- Name: offering_type offering_type_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_type
+    ADD CONSTRAINT offering_type_pkey PRIMARY KEY (offering_type_id);
 
 
 --
@@ -1616,6 +2988,62 @@ ALTER TABLE ONLY design.path_segment
 
 
 --
+-- Name: physical_beacon physical_beacon_asset_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.physical_beacon
+    ADD CONSTRAINT physical_beacon_asset_name_unique UNIQUE (asset_name);
+
+
+--
+-- Name: physical_beacon physical_beacon_ibeacon_identity_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.physical_beacon
+    ADD CONSTRAINT physical_beacon_ibeacon_identity_unique UNIQUE (ibeacon_uuid, ibeacon_major, ibeacon_minor);
+
+
+--
+-- Name: physical_beacon physical_beacon_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.physical_beacon
+    ADD CONSTRAINT physical_beacon_pkey PRIMARY KEY (physical_beacon_id);
+
+
+--
+-- Name: poi_capability poi_capability_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_capability
+    ADD CONSTRAINT poi_capability_code_unique UNIQUE (code);
+
+
+--
+-- Name: poi_capability poi_capability_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_capability
+    ADD CONSTRAINT poi_capability_name_unique UNIQUE (name);
+
+
+--
+-- Name: poi_capability poi_capability_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_capability
+    ADD CONSTRAINT poi_capability_pkey PRIMARY KEY (poi_capability_id);
+
+
+--
+-- Name: poi_item poi_item_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_item
+    ADD CONSTRAINT poi_item_pkey PRIMARY KEY (poi_item_id);
+
+
+--
 -- Name: poi_path_connector poi_path_connector_pkey; Type: CONSTRAINT; Schema: design; Owner: -
 --
 
@@ -1632,11 +3060,91 @@ ALTER TABLE ONLY design.poi
 
 
 --
+-- Name: poi_type_capability poi_type_capability_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type_capability
+    ADD CONSTRAINT poi_type_capability_pkey PRIMARY KEY (poi_type_id, poi_capability_id);
+
+
+--
+-- Name: poi_type poi_type_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type
+    ADD CONSTRAINT poi_type_code_unique UNIQUE (code);
+
+
+--
+-- Name: poi_type poi_type_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type
+    ADD CONSTRAINT poi_type_name_unique UNIQUE (name);
+
+
+--
+-- Name: poi_type poi_type_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type
+    ADD CONSTRAINT poi_type_pkey PRIMARY KEY (poi_type_id);
+
+
+--
 -- Name: queue queue_pkey; Type: CONSTRAINT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.queue
     ADD CONSTRAINT queue_pkey PRIMARY KEY (queue_id);
+
+
+--
+-- Name: queue_source_ble queue_source_ble_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_ble
+    ADD CONSTRAINT queue_source_ble_pkey PRIMARY KEY (queue_source_ble_id);
+
+
+--
+-- Name: queue_source_ble queue_source_ble_source_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_ble
+    ADD CONSTRAINT queue_source_ble_source_unique UNIQUE (queue_source_id);
+
+
+--
+-- Name: queue_source queue_source_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source
+    ADD CONSTRAINT queue_source_pkey PRIMARY KEY (queue_source_id);
+
+
+--
+-- Name: queue_source_type queue_source_type_code_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_type
+    ADD CONSTRAINT queue_source_type_code_unique UNIQUE (code);
+
+
+--
+-- Name: queue_source_type queue_source_type_name_unique; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_type
+    ADD CONSTRAINT queue_source_type_name_unique UNIQUE (name);
+
+
+--
+-- Name: queue_source_type queue_source_type_pkey; Type: CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_type
+    ADD CONSTRAINT queue_source_type_pkey PRIMARY KEY (queue_source_type_id);
 
 
 --
@@ -1720,10 +3228,49 @@ ALTER TABLE ONLY design.zone
 
 
 --
+-- Name: acknowledgement acknowledgement_delivery_unique; Type: CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.acknowledgement
+    ADD CONSTRAINT acknowledgement_delivery_unique UNIQUE (delivery_id);
+
+
+--
+-- Name: acknowledgement acknowledgement_pkey; Type: CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.acknowledgement
+    ADD CONSTRAINT acknowledgement_pkey PRIMARY KEY (acknowledgement_id);
+
+
+--
+-- Name: delivery delivery_pkey; Type: CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.delivery
+    ADD CONSTRAINT delivery_pkey PRIMARY KEY (delivery_id);
+
+
+--
+-- Name: message message_pkey; Type: CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.message
+    ADD CONSTRAINT message_pkey PRIMARY KEY (message_id);
+
+
+--
 -- Name: crew_pal_one_active_per_pal; Type: INDEX; Schema: community; Owner: -
 --
 
 CREATE UNIQUE INDEX crew_pal_one_active_per_pal ON community.crew_pal USING btree (pal_id) WHERE (left_at IS NULL);
+
+
+--
+-- Name: event_beacon_one_primary; Type: INDEX; Schema: design; Owner: -
+--
+
+CREATE UNIQUE INDEX event_beacon_one_primary ON design.event_beacon_physical USING btree (event_beacon_id) WHERE (role = 'PRIMARY'::text);
 
 
 --
@@ -1772,6 +3319,102 @@ ALTER TABLE ONLY activity.navigation_session
 
 ALTER TABLE ONLY activity.pal_pinger_session
     ADD CONSTRAINT pal_pinger_session_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: authority authority_event_id_fkey; Type: FK CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.authority
+    ADD CONSTRAINT authority_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: operator_authority operator_authority_authority_id_fkey; Type: FK CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator_authority
+    ADD CONSTRAINT operator_authority_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES audit.authority(authority_id);
+
+
+--
+-- Name: operator_authority operator_authority_operator_id_fkey; Type: FK CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator_authority
+    ADD CONSTRAINT operator_authority_operator_id_fkey FOREIGN KEY (operator_id) REFERENCES audit.operator(operator_id);
+
+
+--
+-- Name: operator operator_event_id_fkey; Type: FK CONSTRAINT; Schema: audit; Owner: -
+--
+
+ALTER TABLE ONLY audit.operator
+    ADD CONSTRAINT operator_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: communication communication_event_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication
+    ADD CONSTRAINT communication_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: communication communication_item_sequence_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication
+    ADD CONSTRAINT communication_item_sequence_id_fkey FOREIGN KEY (item_sequence_id) REFERENCES design.item_sequence(item_sequence_id);
+
+
+--
+-- Name: communication communication_poi_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication
+    ADD CONSTRAINT communication_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
+
+
+--
+-- Name: communication communication_poi_item_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.communication
+    ADD CONSTRAINT communication_poi_item_id_fkey FOREIGN KEY (poi_item_id) REFERENCES design.poi_item(poi_item_id);
+
+
+--
+-- Name: subscription subscription_item_sequence_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_item_sequence_id_fkey FOREIGN KEY (item_sequence_id) REFERENCES design.item_sequence(item_sequence_id);
+
+
+--
+-- Name: subscription subscription_pal_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_pal_id_fkey FOREIGN KEY (pal_id) REFERENCES community.pal(pal_id);
+
+
+--
+-- Name: subscription subscription_poi_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
+
+
+--
+-- Name: subscription subscription_poi_item_id_fkey; Type: FK CONSTRAINT; Schema: communications; Owner: -
+--
+
+ALTER TABLE ONLY communications.subscription
+    ADD CONSTRAINT subscription_poi_item_id_fkey FOREIGN KEY (poi_item_id) REFERENCES design.poi_item(poi_item_id);
 
 
 --
@@ -1831,6 +3474,46 @@ ALTER TABLE ONLY design.escalator
 
 
 --
+-- Name: event_beacon event_beacon_event_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon
+    ADD CONSTRAINT event_beacon_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: event_beacon_physical event_beacon_physical_event_beacon_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon_physical
+    ADD CONSTRAINT event_beacon_physical_event_beacon_id_fkey FOREIGN KEY (event_beacon_id) REFERENCES design.event_beacon(event_beacon_id);
+
+
+--
+-- Name: event_beacon_physical event_beacon_physical_physical_beacon_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon_physical
+    ADD CONSTRAINT event_beacon_physical_physical_beacon_id_fkey FOREIGN KEY (physical_beacon_id) REFERENCES design.physical_beacon(physical_beacon_id);
+
+
+--
+-- Name: event_beacon event_beacon_poi_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_beacon
+    ADD CONSTRAINT event_beacon_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
+
+
+--
+-- Name: event_day event_day_event_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.event_day
+    ADD CONSTRAINT event_day_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
 -- Name: flight flight_staircase_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
 --
 
@@ -1839,11 +3522,91 @@ ALTER TABLE ONLY design.flight
 
 
 --
+-- Name: item_sequence item_sequence_event_day_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.item_sequence
+    ADD CONSTRAINT item_sequence_event_day_id_fkey FOREIGN KEY (event_day_id) REFERENCES design.event_day(event_day_id);
+
+
+--
+-- Name: item_sequence item_sequence_poi_item_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.item_sequence
+    ADD CONSTRAINT item_sequence_poi_item_id_fkey FOREIGN KEY (poi_item_id) REFERENCES design.poi_item(poi_item_id);
+
+
+--
 -- Name: junction junction_event_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.junction
     ADD CONSTRAINT junction_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: offering_availability offering_availability_offering_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_availability
+    ADD CONSTRAINT offering_availability_offering_id_fkey FOREIGN KEY (offering_id) REFERENCES design.offering(offering_id);
+
+
+--
+-- Name: offering_item_allergen offering_item_allergen_allergen_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_allergen
+    ADD CONSTRAINT offering_item_allergen_allergen_id_fkey FOREIGN KEY (allergen_id) REFERENCES design.allergen(allergen_id);
+
+
+--
+-- Name: offering_item_allergen offering_item_allergen_offering_item_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_allergen
+    ADD CONSTRAINT offering_item_allergen_offering_item_id_fkey FOREIGN KEY (offering_item_id) REFERENCES design.offering_item(offering_item_id);
+
+
+--
+-- Name: offering_item_dietary_attribute offering_item_dietary_attribute_dietary_attribute_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_dietary_attribute
+    ADD CONSTRAINT offering_item_dietary_attribute_dietary_attribute_id_fkey FOREIGN KEY (dietary_attribute_id) REFERENCES design.dietary_attribute(dietary_attribute_id);
+
+
+--
+-- Name: offering_item_dietary_attribute offering_item_dietary_attribute_offering_item_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item_dietary_attribute
+    ADD CONSTRAINT offering_item_dietary_attribute_offering_item_id_fkey FOREIGN KEY (offering_item_id) REFERENCES design.offering_item(offering_item_id);
+
+
+--
+-- Name: offering_item offering_item_offering_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering_item
+    ADD CONSTRAINT offering_item_offering_id_fkey FOREIGN KEY (offering_id) REFERENCES design.offering(offering_id);
+
+
+--
+-- Name: offering offering_offering_type_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering
+    ADD CONSTRAINT offering_offering_type_id_fkey FOREIGN KEY (offering_type_id) REFERENCES design.offering_type(offering_type_id);
+
+
+--
+-- Name: offering offering_poi_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.offering
+    ADD CONSTRAINT offering_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
 
 
 --
@@ -1919,6 +3682,14 @@ ALTER TABLE ONLY design.poi
 
 
 --
+-- Name: poi_item poi_item_poi_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_item
+    ADD CONSTRAINT poi_item_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
+
+
+--
 -- Name: poi_path_connector poi_path_connector_path_connector_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
 --
 
@@ -1935,6 +3706,30 @@ ALTER TABLE ONLY design.poi_path_connector
 
 
 --
+-- Name: poi poi_poi_type_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi
+    ADD CONSTRAINT poi_poi_type_id_fkey FOREIGN KEY (poi_type_id) REFERENCES design.poi_type(poi_type_id);
+
+
+--
+-- Name: poi_type_capability poi_type_capability_poi_capability_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type_capability
+    ADD CONSTRAINT poi_type_capability_poi_capability_id_fkey FOREIGN KEY (poi_capability_id) REFERENCES design.poi_capability(poi_capability_id);
+
+
+--
+-- Name: poi_type_capability poi_type_capability_poi_type_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.poi_type_capability
+    ADD CONSTRAINT poi_type_capability_poi_type_id_fkey FOREIGN KEY (poi_type_id) REFERENCES design.poi_type(poi_type_id);
+
+
+--
 -- Name: queue queue_event_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
 --
 
@@ -1943,11 +3738,59 @@ ALTER TABLE ONLY design.queue
 
 
 --
+-- Name: queue queue_poi_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue
+    ADD CONSTRAINT queue_poi_id_fkey FOREIGN KEY (poi_id) REFERENCES design.poi(poi_id);
+
+
+--
+-- Name: queue_source_ble queue_source_ble_event_beacon_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_ble
+    ADD CONSTRAINT queue_source_ble_event_beacon_id_fkey FOREIGN KEY (event_beacon_id) REFERENCES design.event_beacon(event_beacon_id);
+
+
+--
+-- Name: queue_source_ble queue_source_ble_queue_source_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source_ble
+    ADD CONSTRAINT queue_source_ble_queue_source_id_fkey FOREIGN KEY (queue_source_id) REFERENCES design.queue_source(queue_source_id);
+
+
+--
+-- Name: queue_source queue_source_queue_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source
+    ADD CONSTRAINT queue_source_queue_id_fkey FOREIGN KEY (queue_id) REFERENCES design.queue(queue_id);
+
+
+--
+-- Name: queue_source queue_source_queue_source_type_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_source
+    ADD CONSTRAINT queue_source_queue_source_type_id_fkey FOREIGN KEY (queue_source_type_id) REFERENCES design.queue_source_type(queue_source_type_id);
+
+
+--
 -- Name: queue_wait_time queue_wait_time_queue_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
 --
 
 ALTER TABLE ONLY design.queue_wait_time
     ADD CONSTRAINT queue_wait_time_queue_id_fkey FOREIGN KEY (queue_id) REFERENCES design.queue(queue_id);
+
+
+--
+-- Name: queue_wait_time queue_wait_time_queue_source_id_fkey; Type: FK CONSTRAINT; Schema: design; Owner: -
+--
+
+ALTER TABLE ONLY design.queue_wait_time
+    ADD CONSTRAINT queue_wait_time_queue_source_id_fkey FOREIGN KEY (queue_source_id) REFERENCES design.queue_source(queue_source_id);
 
 
 --
@@ -2031,8 +3874,40 @@ ALTER TABLE ONLY design.zone
 
 
 --
+-- Name: acknowledgement acknowledgement_delivery_id_fkey; Type: FK CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.acknowledgement
+    ADD CONSTRAINT acknowledgement_delivery_id_fkey FOREIGN KEY (delivery_id) REFERENCES messaging.delivery(delivery_id);
+
+
+--
+-- Name: delivery delivery_message_id_fkey; Type: FK CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.delivery
+    ADD CONSTRAINT delivery_message_id_fkey FOREIGN KEY (message_id) REFERENCES messaging.message(message_id);
+
+
+--
+-- Name: delivery delivery_pal_id_fkey; Type: FK CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.delivery
+    ADD CONSTRAINT delivery_pal_id_fkey FOREIGN KEY (pal_id) REFERENCES community.pal(pal_id);
+
+
+--
+-- Name: message message_event_id_fkey; Type: FK CONSTRAINT; Schema: messaging; Owner: -
+--
+
+ALTER TABLE ONLY messaging.message
+    ADD CONSTRAINT message_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 3nShoLVEFyhhpS3NbrDfYr35knjELa4nrOKK5MjWijoVTn1ui5KEf1I0RA1sDbr
+\unrestrict 6P9qJexTy5BFlAebF8VfeUWW8KNI6B1x076bkfDEc3xKVWdqt5p6Wa4sWRNM9sA
 
