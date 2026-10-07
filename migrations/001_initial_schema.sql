@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 6P9qJexTy5BFlAebF8VfeUWW8KNI6B1x076bkfDEc3xKVWdqt5p6Wa4sWRNM9sA
+\restrict WdQFOrfG1cWCFRR2EcUQyID8E0gRfC8M8W0saQ6O2Op8GbMUsBFS9FZGdwOo5H8
 
 -- Dumped from database version 18.6 (Homebrew)
 -- Dumped by pg_dump version 18.6 (Homebrew)
@@ -489,7 +489,7 @@ ALTER SEQUENCE communications.communication_communication_id_seq OWNED BY commun
 
 CREATE TABLE communications.subscription (
     subscription_id bigint NOT NULL,
-    pal_id bigint NOT NULL,
+    pal_id uuid NOT NULL,
     poi_id bigint,
     poi_item_id bigint,
     subscribed_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -557,7 +557,7 @@ ALTER SEQUENCE community.crew_crew_id_seq OWNED BY community.crew.crew_id;
 CREATE TABLE community.crew_message (
     crew_message_id bigint NOT NULL,
     crew_id bigint NOT NULL,
-    pal_id bigint NOT NULL,
+    pal_id uuid NOT NULL,
     message text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -589,7 +589,7 @@ ALTER SEQUENCE community.crew_message_crew_message_id_seq OWNED BY community.cre
 CREATE TABLE community.crew_pal (
     crew_pal_id bigint NOT NULL,
     crew_id bigint NOT NULL,
-    pal_id bigint NOT NULL,
+    pal_id uuid NOT NULL,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
     left_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -622,30 +622,11 @@ ALTER SEQUENCE community.crew_pal_crew_pal_id_seq OWNED BY community.crew_pal.cr
 --
 
 CREATE TABLE community.pal (
-    pal_id bigint NOT NULL,
+    pal_id uuid NOT NULL,
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
-
-
---
--- Name: pal_pal_id_seq; Type: SEQUENCE; Schema: community; Owner: -
---
-
-CREATE SEQUENCE community.pal_pal_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: pal_pal_id_seq; Type: SEQUENCE OWNED BY; Schema: community; Owner: -
---
-
-ALTER SEQUENCE community.pal_pal_id_seq OWNED BY community.pal.pal_id;
 
 
 --
@@ -794,6 +775,9 @@ CREATE TABLE design.event (
     start_at timestamp with time zone NOT NULL,
     end_at timestamp with time zone NOT NULL,
     remote_support_enabled boolean DEFAULT false NOT NULL,
+    api_url text,
+    runtime_url text,
+    runtime_version text,
     CONSTRAINT event_dates_valid CHECK ((end_at > start_at))
 );
 
@@ -2076,7 +2060,7 @@ ALTER SEQUENCE messaging.acknowledgement_acknowledgement_id_seq OWNED BY messagi
 CREATE TABLE messaging.delivery (
     delivery_id bigint NOT NULL,
     message_id bigint NOT NULL,
-    pal_id bigint,
+    pal_id uuid,
     status text DEFAULT 'QUEUED'::text NOT NULL,
     queued_at timestamp with time zone DEFAULT now() NOT NULL,
     delivered_at timestamp with time zone,
@@ -2236,13 +2220,6 @@ ALTER TABLE ONLY community.crew_message ALTER COLUMN crew_message_id SET DEFAULT
 --
 
 ALTER TABLE ONLY community.crew_pal ALTER COLUMN crew_pal_id SET DEFAULT nextval('community.crew_pal_crew_pal_id_seq'::regclass);
-
-
---
--- Name: pal pal_id; Type: DEFAULT; Schema: community; Owner: -
---
-
-ALTER TABLE ONLY community.pal ALTER COLUMN pal_id SET DEFAULT nextval('community.pal_pal_id_seq'::regclass);
 
 
 --
@@ -3909,5 +3886,5 @@ ALTER TABLE ONLY messaging.message
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6P9qJexTy5BFlAebF8VfeUWW8KNI6B1x076bkfDEc3xKVWdqt5p6Wa4sWRNM9sA
+\unrestrict WdQFOrfG1cWCFRR2EcUQyID8E0gRfC8M8W0saQ6O2Op8GbMUsBFS9FZGdwOo5H8
 
