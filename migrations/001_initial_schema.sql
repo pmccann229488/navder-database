@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict WdQFOrfG1cWCFRR2EcUQyID8E0gRfC8M8W0saQ6O2Op8GbMUsBFS9FZGdwOo5H8
+\restrict km9Ci3zGxp05NegshR0FAGYTZNJViH6cZOE8luePHrfhQIStgH4yCKhV8c6ziXq
 
 -- Dumped from database version 18.6 (Homebrew)
 -- Dumped by pg_dump version 18.6 (Homebrew)
@@ -551,6 +551,19 @@ ALTER SEQUENCE community.crew_crew_id_seq OWNED BY community.crew.crew_id;
 
 
 --
+-- Name: crew_invitation; Type: TABLE; Schema: community; Owner: -
+--
+
+CREATE TABLE community.crew_invitation (
+    crew_id bigint NOT NULL,
+    token_hash text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT crew_invitation_token_hash_not_empty CHECK ((length(btrim(token_hash)) > 0))
+);
+
+
+--
 -- Name: crew_message; Type: TABLE; Schema: community; Owner: -
 --
 
@@ -615,6 +628,24 @@ CREATE SEQUENCE community.crew_pal_crew_pal_id_seq
 --
 
 ALTER SEQUENCE community.crew_pal_crew_pal_id_seq OWNED BY community.crew_pal.crew_pal_id;
+
+
+--
+-- Name: event_session; Type: TABLE; Schema: community; Owner: -
+--
+
+CREATE TABLE community.event_session (
+    event_session_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pal_id uuid NOT NULL,
+    event_id bigint NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    ended_at timestamp with time zone,
+    status text DEFAULT 'ACTIVE'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT event_session_dates_valid CHECK (((ended_at IS NULL) OR (ended_at >= started_at))),
+    CONSTRAINT event_session_status_valid CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'ENDED'::text])))
+);
 
 
 --
@@ -2653,6 +2684,22 @@ ALTER TABLE ONLY communications.subscription
 
 
 --
+-- Name: crew_invitation crew_invitation_pkey; Type: CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.crew_invitation
+    ADD CONSTRAINT crew_invitation_pkey PRIMARY KEY (crew_id);
+
+
+--
+-- Name: crew_invitation crew_invitation_token_hash_key; Type: CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.crew_invitation
+    ADD CONSTRAINT crew_invitation_token_hash_key UNIQUE (token_hash);
+
+
+--
 -- Name: crew_message crew_message_pkey; Type: CONSTRAINT; Schema: community; Owner: -
 --
 
@@ -2674,6 +2721,14 @@ ALTER TABLE ONLY community.crew_pal
 
 ALTER TABLE ONLY community.crew
     ADD CONSTRAINT crew_pkey PRIMARY KEY (crew_id);
+
+
+--
+-- Name: event_session event_session_pkey; Type: CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.event_session
+    ADD CONSTRAINT event_session_pkey PRIMARY KEY (event_session_id);
 
 
 --
@@ -3244,6 +3299,13 @@ CREATE UNIQUE INDEX crew_pal_one_active_per_pal ON community.crew_pal USING btre
 
 
 --
+-- Name: event_session_one_active_per_pal_event; Type: INDEX; Schema: community; Owner: -
+--
+
+CREATE UNIQUE INDEX event_session_one_active_per_pal_event ON community.event_session USING btree (pal_id, event_id) WHERE (status = 'ACTIVE'::text);
+
+
+--
 -- Name: event_beacon_one_primary; Type: INDEX; Schema: design; Owner: -
 --
 
@@ -3403,6 +3465,14 @@ ALTER TABLE ONLY community.crew
 
 
 --
+-- Name: crew_invitation crew_invitation_crew_id_fkey; Type: FK CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.crew_invitation
+    ADD CONSTRAINT crew_invitation_crew_id_fkey FOREIGN KEY (crew_id) REFERENCES community.crew(crew_id);
+
+
+--
 -- Name: crew_message crew_message_crew_id_fkey; Type: FK CONSTRAINT; Schema: community; Owner: -
 --
 
@@ -3432,6 +3502,22 @@ ALTER TABLE ONLY community.crew_pal
 
 ALTER TABLE ONLY community.crew_pal
     ADD CONSTRAINT crew_pal_pal_id_fkey FOREIGN KEY (pal_id) REFERENCES community.pal(pal_id);
+
+
+--
+-- Name: event_session event_session_event_id_fkey; Type: FK CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.event_session
+    ADD CONSTRAINT event_session_event_id_fkey FOREIGN KEY (event_id) REFERENCES design.event(event_id);
+
+
+--
+-- Name: event_session event_session_pal_id_fkey; Type: FK CONSTRAINT; Schema: community; Owner: -
+--
+
+ALTER TABLE ONLY community.event_session
+    ADD CONSTRAINT event_session_pal_id_fkey FOREIGN KEY (pal_id) REFERENCES community.pal(pal_id);
 
 
 --
@@ -3886,5 +3972,5 @@ ALTER TABLE ONLY messaging.message
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WdQFOrfG1cWCFRR2EcUQyID8E0gRfC8M8W0saQ6O2Op8GbMUsBFS9FZGdwOo5H8
+\unrestrict km9Ci3zGxp05NegshR0FAGYTZNJViH6cZOE8luePHrfhQIStgH4yCKhV8c6ziXq
 
