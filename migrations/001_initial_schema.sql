@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict km9Ci3zGxp05NegshR0FAGYTZNJViH6cZOE8luePHrfhQIStgH4yCKhV8c6ziXq
+\restrict b41O26uB32U1Hpym89vctpOvzriMnOWcIqz1PocoFcsb5ugUfu1sjSieXUATI5F
 
 -- Dumped from database version 18.6 (Homebrew)
 -- Dumped by pg_dump version 18.6 (Homebrew)
@@ -570,9 +570,11 @@ CREATE TABLE community.crew_invitation (
 CREATE TABLE community.crew_message (
     crew_message_id bigint NOT NULL,
     crew_id bigint NOT NULL,
-    pal_id uuid NOT NULL,
+    pal_id uuid,
     message text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    message_type text DEFAULT 'user'::text NOT NULL,
+    CONSTRAINT crew_message_type_valid CHECK ((((message_type = 'user'::text) AND (pal_id IS NOT NULL)) OR ((message_type = 'system'::text) AND (pal_id IS NULL))))
 );
 
 
@@ -3972,5 +3974,5 @@ ALTER TABLE ONLY messaging.message
 -- PostgreSQL database dump complete
 --
 
-\unrestrict km9Ci3zGxp05NegshR0FAGYTZNJViH6cZOE8luePHrfhQIStgH4yCKhV8c6ziXq
+\unrestrict b41O26uB32U1Hpym89vctpOvzriMnOWcIqz1PocoFcsb5ugUfu1sjSieXUATI5F
 
